@@ -155,6 +155,9 @@ public class LocalPaginatedStorageLinkBagCrashRestore {
       final Random random = new Random();
       try {
         while (true) {
+          if (lastClusterPosition <= 0)
+            continue;
+
           final long ts = System.currentTimeMillis();
           final long position = random.nextInt((int) lastClusterPosition);
           final ORID orid = new ORecordId(defaultClusterId, position);
@@ -253,18 +256,17 @@ public class LocalPaginatedStorageLinkBagCrashRestore {
     List<Future<Void>> futures = new ArrayList<Future<Void>>();
     futures.add(executorService.submit(new DocumentAdder()));
 
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 8; i++)
       futures.add(executorService.submit(new RidAdder()));
 
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 8; i++)
       futures.add(executorService.submit(new RidDeleter()));
 
-		Thread.sleep(1800000);
+    Thread.sleep(300000);
     long lastTs = System.currentTimeMillis();
 
     System.out.println("Wait for process to destroy");
-    Process p = Runtime.getRuntime().exec("pkill -9 -f RemoteDBRunner");
-    p.waitFor();
+    // process.destroyForcibly();
 
     process.waitFor();
     System.out.println("Process was destroyed");
