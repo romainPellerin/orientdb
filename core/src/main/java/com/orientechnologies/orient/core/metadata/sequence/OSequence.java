@@ -1,5 +1,6 @@
 package com.orientechnologies.orient.core.metadata.sequence;
 
+import com.orientechnologies.common.exception.OException;
 import com.orientechnologies.orient.core.annotation.OExposedMethod;
 import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal;
 import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal;
@@ -18,22 +19,22 @@ import java.util.concurrent.Callable;
  * @since 3/2/2015
  */
 public abstract class OSequence extends ODocumentWrapper {
-  public static final long DEFAULT_START = 0;
-  public static final int DEFAULT_INCREMENT = 1;
-  public static final int DEFAULT_CACHE = 20;
+  public static final long    DEFAULT_START     = 0;
+  public static final int     DEFAULT_INCREMENT = 1;
+  public static final int     DEFAULT_CACHE     = 20;
 
-  protected static final int RETRY_COUNT = 10;
-  public static final String CLASS_NAME = "OSequence";
+  protected static final int  RETRY_COUNT       = 1000;
+  public static final String  CLASS_NAME        = "OSequence";
 
-  private static final String FIELD_START = "start";
-  private static final String FIELD_INCREMENT = "incr";
-  private static final String FIELD_VALUE = "value";
+  private static final String FIELD_START       = "start";
+  private static final String FIELD_INCREMENT   = "incr";
+  private static final String FIELD_VALUE       = "value";
 
-  private static final String FIELD_NAME = "name";
-  private static final String FIELD_TYPE = "type";
+  private static final String FIELD_NAME        = "name";
+  private static final String FIELD_TYPE        = "type";
 
   public static class CreateParams {
-    public Long start;
+    public Long    start;
     public Integer increment;
     public Integer cacheSize;
 
@@ -52,7 +53,8 @@ public abstract class OSequence extends ODocumentWrapper {
       return this;
     }
 
-    public CreateParams() { }
+    public CreateParams() {
+    }
 
     public CreateParams setDefaults() {
       this.start = this.start != null ? this.start : DEFAULT_START;
@@ -64,8 +66,7 @@ public abstract class OSequence extends ODocumentWrapper {
   }
 
   public enum SEQUENCE_TYPE {
-    CACHED,
-    ORDERED,;
+    CACHED, ORDERED, ;
   }
 
   protected OSequence() {
@@ -209,6 +210,13 @@ public abstract class OSequence extends ODocumentWrapper {
         } else {
           throw new OSequenceException(e);
         }
+      } catch (OException e) {
+        if (e.getClass().getSimpleName().equals("ODistributedException")) {
+          --retry;
+          reloadSequence();
+        } else
+          throw new OSequenceException(e);
+
       } catch (Exception e) {
         throw new OSequenceException(e);
       }
@@ -217,7 +225,7 @@ public abstract class OSequence extends ODocumentWrapper {
       return callInTx(callable);
     } catch (Exception e) {
       if (e.getCause() instanceof OConcurrentModificationException) {
-        throw ((OConcurrentModificationException)e.getCause());
+        throw ((OConcurrentModificationException) e.getCause());
       }
       throw new OSequenceException(e);
     }
@@ -230,8 +238,7 @@ public abstract class OSequence extends ODocumentWrapper {
   public abstract long next();
 
   /*
-   * Returns the current sequence value.
-   * If next() was never called, returns null
+   * Returns the current sequence value. If next() was never called, returns null
    */
   @OExposedMethod
   public abstract long current();
